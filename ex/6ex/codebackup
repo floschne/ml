@@ -1,0 +1,87 @@
+def calc_phi(w):
+    assert w.shape == (300, 3)
+    phi = np.mean(w, axis=0)
+
+    # assert np.isclose(phi[0], 1/300 * sum(w[:, 0]))
+    # assert np.isclose(phi[1], 1/300 * sum(w[:, 1]))
+    # assert np.isclose(phi[2], 1/300 * sum(w[:, 2]))
+
+    assert phi.shape == (3, )
+    assert np.isclose(np.sum(phi), 1.)
+    return phi
+
+def calc_mu(x, w):
+    assert x.shape == (300, 2)
+    assert w.shape == (300, 3)
+
+    mu = np.zeros((3, 2))
+    for j in range(3):
+        mu[j, :] = np.dot(w[:, j], x) / np.sum(w[:, j])
+
+    assert mu.shape == (3, 2)
+    return mu
+
+def calc_sigma(x, w, mu):
+    assert x.shape == (300, 2)
+    assert w.shape == (300, 3)
+    assert mu.shape == (3, 2)
+
+    sigma = np.zeros(3, )
+    for j in range(3):
+        for i, xi in enumerate(x):
+            sigma[j] += (w[i, j] * (np.dot((xi - mu[j, :]), (xi - mu[j, :]))) / np.sum(w[:, j]))
+
+        #xx = x - mu[j, :]
+        # assert xx.shape == (300, 2)
+        # xx2 = (xx * xx).sum(axis=1)
+        # assert xx2.shape == (300, )
+
+        # sigma[j] = np.dot(w[:, j], xx2) / np.sum(w[:, j])
+        # assert np.isscalar(sigma[j])
+
+    sigma = np.array(sigma)
+    assert sigma.shape == (3, )
+    return sigma
+
+
+def p_x_give_zj(x, mu, sigma):
+    assert x.shape == (300, 2)
+    assert mu.shape == (3, 2)
+    assert sigma.shape == (3, )
+
+    N = [None, None, None]
+    for j in range(3):
+        N[j] = s.multivariate_normal(mu[j,:], (sigma[j], sigma[j]), allow_singular=True)
+
+    res = np.array([N[j].pdf(x) for j in range(3)]).T
+    assert res.shape == (300, 3)
+
+    return res
+
+def calc_weights(x, phi, mu, sigma):
+    assert x.shape == (300, 2)
+    assert phi.shape == (3, )
+    assert mu.shape == (3, 2)
+    assert sigma.shape == (3, )
+
+    w = np.zeros((300, 3))
+    nominator = np.zeros((300, 3))
+
+    px_z = p_x_give_zj(x, mu, sigma)
+
+    for j in range(3):
+        nominator[:, j] = px_z[:, j] * phi[j, np.newaxis]
+        assert nominator[:, j].shape == (300, )
+    assert nominator.shape == (300, 3)
+
+    denominator = np.sum(nominator, axis=1)
+    assert denominator.shape == (300, )
+
+    for j in range(3):
+        w[:, j] = nominator[:, j] / denominator
+        assert w[:, j].shape == (300, )
+
+    assert w.shape == (300, 3)
+    assert np.isclose(np.sum(w), 300)
+
+    return np.array(w)
